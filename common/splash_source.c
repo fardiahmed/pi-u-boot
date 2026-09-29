@@ -7,6 +7,7 @@
 
 #include <common.h>
 #include <bmp_layout.h>
+#include <blk.h>
 #include <command.h>
 #include <env.h>
 #include <errno.h>
@@ -14,6 +15,7 @@
 #include <fdt_support.h>
 #include <image.h>
 #include <log.h>
+#include <mmc.h>
 #include <nand.h>
 #include <sata.h>
 #include <spi.h>
@@ -22,6 +24,7 @@
 #include <usb.h>
 #include <virtio.h>
 #include <asm/global_data.h>
+#include <linux/kernel.h>
 #include <stdint.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -66,6 +69,48 @@ static int splash_nand_read_raw(u32 bmp_load_addr, int offset, size_t read_size)
 }
 #endif
 
+#ifdef CONFIG_MMC
+/* Read a splash BMP from a raw byte offset on the eMMC/SD device. */
+static int splash_mmc_read_raw(u32 bmp_load_addr, u32 offset, size_t read_size)
+{
+	struct mmc *mmc;
+	struct blk_desc *desc;
+	lbaint_t blk, cnt, n;
+
+	mmc = find_mmc_device(mmc_get_env_dev());
+	if (!mmc)
+		return -ENODEV;
+
+	if (mmc_init(mmc))
+		return -EIO;
+
+	desc = mmc_get_blk_desc(mmc);
+	if (!desc || !desc->blksz)
+		return -ENODEV;
+
+	if (offset % desc->blksz) {
+		printf("splash: mmc raw offset 0x%x is not block-aligned (blksz=%lu)\n",
+		       offset, (unsigned long)desc->blksz);
+		return -EINVAL;
+	}
+
+	blk = offset / desc->blksz;
+	cnt = DIV_ROUND_UP(read_size, desc->blksz);
+
+	n = blk_dread(desc, blk, cnt, (void *)(uintptr_t)bmp_load_addr);
+	if (n != cnt)
+		return -EIO;
+
+	return 0;
+}
+#else
+static int splash_mmc_read_raw(u32 bmp_load_addr, u32 offset, size_t read_size)
+{
+	debug("%s: mmc support not available\n", __func__);
+	return -ENOSYS;
+}
+#endif
+
 static int splash_storage_read_raw(struct splash_location *location,
 			       u32 bmp_load_addr, size_t read_size)
 {
@@ -80,6 +125,8 @@ static int splash_storage_read_raw(struct splash_location *location,
 		return splash_nand_read_raw(bmp_load_addr, offset, read_size);
 	case SPLASH_STORAGE_SF:
 		return splash_sf_read_raw(bmp_load_addr, offset, read_size);
+	case SPLASH_STORAGE_MMC:
+		return splash_mmc_read_raw(bmp_load_addr, offset, read_size);
 	default:
 		printf("Unknown splash location\n");
 	}
