@@ -2,31 +2,51 @@
 #include <dm.h>
 #include <env.h>
 #include <image.h>
+#include <part.h>
 #include <splash.h>
 #include <mmc.h>
 #include <fb_spacemit.h>
 
+/* GPT partition holding the raw splash BMP (Android layouts have no bootfs). */
+#define SPLASH_EMMC_LOGO_PART_NAME "logo"
 
 #if defined(CONFIG_SPLASH_SCREEN) && defined(CONFIG_CMD_BMP)
 
 int set_emmc_splash_location(struct splash_location *locations) {
+	struct blk_desc *dev_desc;
+	struct disk_partition part_info;
 	int dev_index = mmc_get_env_dev();
-	int part_index;
-	char devpart_str[16];
-	int err;
+	int p;
+	int ret = -ENOENT;
 
-	err = get_partition_index_by_name(BOOTFS_NAME, &part_index);
-	if (err) {
-		pr_err("Failed to get partition index for %s\n", BOOTFS_NAME);
-		return -1;
+	dev_desc = blk_get_dev("mmc", dev_index);
+	if (!dev_desc) {
+		pr_err("Cannot find MMC device %d for splash\n", dev_index);
+		return -ENODEV;
 	}
 
-	snprintf(devpart_str, sizeof(devpart_str), "%d:%d", dev_index, part_index);
+	for (p = 1; ; ++p) {
+		int err = part_get_info(dev_desc, p, &part_info);
+		if (err == -ENOENT)
+			break;
+		if (err < 0) {
+			pr_err("Error getting partition info for partition %d: %d\n", p, err);
+			return err;
+		}
+		if (!strcmp((const char *)part_info.name, SPLASH_EMMC_LOGO_PART_NAME)) {
+			ret = 0;
+			break;
+		}
+	}
+	if (ret) {
+		pr_err("Failed to find %s partition for splash\n", SPLASH_EMMC_LOGO_PART_NAME);
+		return ret;
+	}
 
 	locations[0].name = "emmc_fs";
 	locations[0].storage = SPLASH_STORAGE_MMC;
-	locations[0].flags = SPLASH_STORAGE_FS;
-	locations[0].devpart = strdup(devpart_str);
+	locations[0].flags = SPLASH_STORAGE_RAW;
+	locations[0].offset = (u32)(part_info.start * part_info.blksz);
 	return 0;
 }
 
