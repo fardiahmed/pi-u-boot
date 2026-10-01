@@ -1,0 +1,174 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * OP-TEE (optee_os plat-spacemit) in an OpenSBI trusted domain. OpenSBI reads this from the
+ * device tree SPL hands it; SPL loads tee.bin to 0x36000000 from u-boot.itb.
+ */
+
+/ {
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		optee@36000000 {
+			reg = <0x0 0x36000000 0x0 0x02000000>;
+			no-map;
+		};
+	};
+
+	chosen {
+		opensbi-domains {
+			compatible = "opensbi,domain,config";
+
+			tmem: tmem {
+				compatible = "opensbi,domain,memregion";
+				base = <0x0 0x36000000>;
+				order = <25>;
+			};
+
+			allmem: allmem {
+				compatible = "opensbi,domain,memregion";
+				base = <0x0 0x0>;
+				order = <64>;
+			};
+
+			/* Boot harts start here; OP-TEE then starts the others and exits to Linux */
+			tdomain: trusted-domain {
+				compatible = "opensbi,domain,instance";
+				regions = <&allmem 0x3f>;
+				possible-harts = <&cpu_0 &cpu_1 &cpu_2 &cpu_3 &cpu_4 &cpu_5 &cpu_6 &cpu_7>;
+				next-addr = <0x0 0x36000000>;
+				next-mode = <0x1>;
+			};
+
+			udomain: untrusted-domain {
+				compatible = "opensbi,domain,instance";
+				regions = <&tmem 0x0>, <&allmem 0x3f>;
+				possible-harts = <&cpu_0 &cpu_1 &cpu_2 &cpu_3 &cpu_4 &cpu_5 &cpu_6 &cpu_7>;
+				boot-hart = <&cpu_0>;
+				next-addr = <0x0 0x00200000>;
+				next-mode = <0x1>;
+			};
+		};
+	};
+};
+
+&cpu_0 {
+	opensbi-domain = <&tdomain>;
+
+	rpmi_optee_0 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x0>;
+		opensbi-domain-instance = <&tdomain>;
+	};
+
+	rpmi_reqfwd_0 {
+		compatible = "riscv,sbi-mpxy-reqfwd";
+		riscv,sbi-mpxy-channel-id = <0x10>;
+	};
+};
+
+&cpu_1 {
+	opensbi-domain = <&tdomain>;
+
+	rpmi_optee_1 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x1>;
+		opensbi-domain-instance = <&tdomain>;
+	};
+
+	rpmi_reqfwd_1 {
+		compatible = "riscv,sbi-mpxy-reqfwd";
+		riscv,sbi-mpxy-channel-id = <0x11>;
+	};
+};
+
+&cpu_2 {
+	opensbi-domain = <&tdomain>;
+
+	rpmi_optee_2 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x2>;
+		opensbi-domain-instance = <&tdomain>;
+	};
+
+	rpmi_reqfwd_2 {
+		compatible = "riscv,sbi-mpxy-reqfwd";
+		riscv,sbi-mpxy-channel-id = <0x12>;
+	};
+};
+
+&cpu_3 {
+	opensbi-domain = <&tdomain>;
+
+	rpmi_optee_3 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x3>;
+		opensbi-domain-instance = <&tdomain>;
+	};
+
+	rpmi_reqfwd_3 {
+		compatible = "riscv,sbi-mpxy-reqfwd";
+		riscv,sbi-mpxy-channel-id = <0x13>;
+	};
+};
+
+&cpu_4 {
+	opensbi-domain = <&tdomain>;
+
+	rpmi_optee_4 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x4>;
+		opensbi-domain-instance = <&tdomain>;
+	};
+
+	rpmi_reqfwd_4 {
+		compatible = "riscv,sbi-mpxy-reqfwd";
+		riscv,sbi-mpxy-channel-id = <0x14>;
+	};
+};
+
+&cpu_5 {
+	opensbi-domain = <&tdomain>;
+
+	rpmi_optee_5 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x5>;
+		opensbi-domain-instance = <&tdomain>;
+	};
+
+	rpmi_reqfwd_5 {
+		compatible = "riscv,sbi-mpxy-reqfwd";
+		riscv,sbi-mpxy-channel-id = <0x15>;
+	};
+};
+
+&cpu_6 {
+	opensbi-domain = <&tdomain>;
+
+	rpmi_optee_6 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x6>;
+		opensbi-domain-instance = <&tdomain>;
+	};
+
+	rpmi_reqfwd_6 {
+		compatible = "riscv,sbi-mpxy-reqfwd";
+		riscv,sbi-mpxy-channel-id = <0x16>;
+	};
+};
+
+&cpu_7 {
+	opensbi-domain = <&tdomain>;
+
+	rpmi_optee_7 {
+		compatible = "riscv,sbi-mpxy-optee";
+		riscv,sbi-mpxy-channel-id = <0x7>;
+		opensbi-domain-instance = <&tdomain>;
+	};
+
+	rpmi_reqfwd_7 {
+		compatible = "riscv,sbi-mpxy-reqfwd";
+		riscv,sbi-mpxy-channel-id = <0x17>;
+	};
+};

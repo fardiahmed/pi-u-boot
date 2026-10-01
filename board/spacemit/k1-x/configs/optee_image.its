@@ -1,0 +1,13 @@
+		/* Inserted by config.mk when tee.bin (OP-TEE) is present */
+		tee {
+			description = "OP-TEE OS";
+			type = "tee";
+			os = "tee";
+			arch = "riscv";
+			compression = "none";
+			load = <0x0 0x36000000>;
+			data = /incbin/("../tee.bin");
+			hash-1 {
+				algo = "crc32";
+			};
+		};
