@@ -548,6 +548,11 @@ static int run_avb_verification(struct bootflow *bflow)
 		boot_state = AVB_ORANGE;
 	}
 
+	/* KeyMint reads it from OP-TEE; boot on without it (KeyMint reports it missing) */
+	ret = avb_set_root_of_trust(out_data, boot_state, unlocked);
+	if (ret)
+		printf("OP-TEE: cannot set the boot root of trust (%d)\n", ret);
+
 	extra_args = avb_set_state(avb_ops, boot_state);
 	if (extra_args) {
 		ret = avb_append_commandline_arg(bflow, extra_args);

@@ -56,6 +56,17 @@ char *avb_set_ignore_corruption(const char *cmdline);
 char *append_cmd_line(char *cmdline_orig, char *cmdline_new);
 const char *str_avb_io_error(AvbIOResult res);
 const char *str_avb_slot_error(AvbSlotVerifyResult res);
+
+#if CONFIG_IS_ENABLED(OPTEE)
+int avb_set_root_of_trust(AvbSlotVerifyData *data, enum avb_boot_state boot_state,
+			  bool unlocked);
+#else
+static inline int avb_set_root_of_trust(AvbSlotVerifyData *data,
+					enum avb_boot_state boot_state, bool unlocked)
+{
+	return 0;
+}
+#endif
 /**
  * ============================================================================
  * I/O helper inline functions

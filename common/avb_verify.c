@@ -12,6 +12,8 @@
 #include <part.h>
 #include <tee.h>
 #include <tee/optee_ta_avb.h>
+#include <tee/pta_boot_rot.h>
+#include <u-boot/sha256.h>
 
 static const unsigned char avb_root_pub[1032] = {
 	0x0, 0x0, 0x10, 0x0, 0x55, 0xd9, 0x4, 0xad, 0xd8, 0x4,
@@ -1078,3 +1080,77 @@ void avb_ops_free(AvbOps *ops)
 		avb_free(ops_data);
 	}
 }
+
+#if CONFIG_IS_ENABLED(OPTEE)
+/* SHA-256 of the public key that signed the top-level vbmeta, left zero if none */
+static void avb_vbmeta_key_hash(const AvbVBMetaData *vbmeta, u8 *out)
+{
+	AvbVBMetaImageHeader h;
+	const u8 *aux;
+
+	if (vbmeta->vbmeta_size < sizeof(h))
+		return;
+	avb_vbmeta_image_header_to_host_byte_order(
+		(const AvbVBMetaImageHeader *)vbmeta->vbmeta_data, &h);
+	if (!h.public_key_size ||
+	    h.authentication_data_block_size > vbmeta->vbmeta_size ||
+	    h.public_key_offset > vbmeta->vbmeta_size ||
+	    h.public_key_size > vbmeta->vbmeta_size ||
+	    sizeof(h) + h.authentication_data_block_size + h.public_key_offset +
+	    h.public_key_size > vbmeta->vbmeta_size)
+		return;
+	aux = vbmeta->vbmeta_data + sizeof(h) + h.authentication_data_block_size;
+	sha256_csum_wd(aux + h.public_key_offset, h.public_key_size, out,
+		       CHUNKSZ_SHA256);
+}
+
+/* Hands the verified boot root of trust to OP-TEE (CFG_BOOT_ROT_PTA) for the KeyMint TA */
+int avb_set_root_of_trust(AvbSlotVerifyData *data, enum avb_boot_state boot_state,
+			  bool unlocked)
+{
+	const struct tee_optee_ta_uuid uuid = PTA_BOOT_ROT_UUID;
+	struct tee_open_session_arg sess = { };
+	struct tee_invoke_arg inv = { };
+	struct tee_param param = { };
+	struct pta_boot_rot *rot;
+	struct tee_shm *shm;
+	struct udevice *tee;
+	int ret;
+
+	tee = tee_find_device(NULL, NULL, NULL, NULL);
+	if (!tee)
+		return -ENODEV;
+	ret = tee_shm_alloc(tee, sizeof(*rot), TEE_SHM_ALLOC, &shm);
+	if (ret)
+		return ret;
+	rot = shm->addr;
+	memset(rot, 0, sizeof(*rot));
+	rot->device_locked = !unlocked;
+	rot->verified_boot_state = boot_state;
+	if (data && data->num_vbmeta_images) {
+		avb_slot_verify_data_calculate_vbmeta_digest(data, AVB_DIGEST_TYPE_SHA256,
+							     rot->verified_boot_hash);
+		avb_vbmeta_key_hash(&data->vbmeta_images[0], rot->verified_boot_key);
+	}
+
+	tee_optee_ta_uuid_to_octets(sess.uuid, &uuid);
+	ret = tee_open_session(tee, &sess, 0, NULL);
+	if (!ret && sess.ret)
+		ret = -EIO;
+	if (ret)
+		goto out;
+
+	param.attr = TEE_PARAM_ATTR_TYPE_MEMREF_INPUT;
+	param.u.memref.shm = shm;
+	param.u.memref.size = sizeof(*rot);
+	inv.func = PTA_BOOT_ROT_CMD_SET;
+	inv.session = sess.session;
+	ret = tee_invoke_func(tee, &inv, 1, &param);
+	if (!ret && inv.ret)
+		ret = -EACCES;
+	tee_close_session(tee, sess.session);
+out:
+	tee_shm_free(shm);
+	return ret;
+}
+#endif
