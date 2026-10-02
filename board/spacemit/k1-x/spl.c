@@ -25,6 +25,9 @@
 #include <cpu_func.h>
 #include <dt-bindings/soc/spacemit-k1x.h>
 #include <display_options.h>
+#include <fdt_support.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 #define GEN_CNT			(0xD5001000)
 #define STORAGE_API_P_ADDR	(0xC0838498)
@@ -700,6 +703,26 @@ void spl_board_init(void)
 	/*load env*/
 	spl_load_env();
 	product_name = get_product_name();
+}
+
+/* OP-TEE only accepts shared memory inside the DT memory banks it gets through OpenSBI:
+ * describe the probed DRAM, not the 2 GB of the dts (Linux uses the bank above 4 GB). */
+void spl_perform_fixups(struct spl_image_info *spl_image)
+{
+	u64 start[CONFIG_NR_DRAM_BANKS], size[CONFIG_NR_DRAM_BANKS];
+	int i, banks = 0;
+
+	if (!spl_image->fdt_addr)
+		return;
+	dram_init_banksize();
+	for (i = 0; i < CONFIG_NR_DRAM_BANKS; i++) {
+		if (!gd->bd->bi_dram[i].size)
+			continue;
+		start[banks] = gd->bd->bi_dram[i].start;
+		size[banks++] = gd->bd->bi_dram[i].size;
+	}
+	if (fdt_fixup_memory_banks(spl_image->fdt_addr, start, size, banks))
+		pr_err("cannot fix up the DT memory banks\n");
 }
 
 struct image_header *spl_get_load_buffer(ssize_t offset, size_t size)
