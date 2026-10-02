@@ -110,11 +110,11 @@
 
 /*
  * Fallback when the TLV EEPROM has no product name. Must match the /model
- * of a bundled ESOS RCPU dtb ("k3-pico-itx"): the ESOS picks its dtb by
+ * of a bundled ESOS RCPU dtb (CONFIG_SPACEMIT_K3_DEFAULT_PRODUCT_NAME): the ESOS picks its dtb by
  * comparing this string (written to the rcpu-data-null slot by the SPL)
  * against its dtbs, and stays without one on a mismatch.
  */
-#define DEFAULT_PRODUCT_NAME		"k3-pico-itx"
+#define DEFAULT_PRODUCT_NAME		CONFIG_SPACEMIT_K3_DEFAULT_PRODUCT_NAME
 #define BOOTFS_NAME			("bootfs")
 
 // for those has NOT been through test procedure(ATE)

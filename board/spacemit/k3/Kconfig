@@ -23,6 +23,13 @@ config BOARD_SPECIFIC_OPTIONS # dummy
 	select SPL_LOAD_BLOCK
 	imply BOARD_LATE_INIT
 
+config SPACEMIT_K3_DEFAULT_PRODUCT_NAME
+	string "Product name when the board EEPROM has none"
+	default "k3-pico-itx"
+	help
+	  Must match the /model of an ESOS RCPU dtb packed in u-boot.itb
+	  (e.g. "k3_com260_kit_v02" for the Banana Pi BPI-SM10).
+
 choice
 	prompt "product board"
 	default K3_BOARD_ASIC
