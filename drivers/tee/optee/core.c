@@ -589,6 +589,7 @@ static bool exchange_capabilities(optee_invoke_fn *invoke_fn, u32 *sec_caps)
 }
 
 /* Simple wrapper functions to be able to use a function pointer */
+#ifdef CONFIG_ARM_SMCCC
 static void optee_smccc_smc(unsigned long a0, unsigned long a1,
 			    unsigned long a2, unsigned long a3,
 			    unsigned long a4, unsigned long a5,
@@ -607,6 +608,8 @@ static void optee_smccc_hvc(unsigned long a0, unsigned long a1,
 	arm_smccc_hvc(a0, a1, a2, a3, a4, a5, a6, a7, res);
 }
 
+#endif
+
 static optee_invoke_fn *get_invoke_func(struct udevice *dev)
 {
 	const char *method;
@@ -618,10 +621,19 @@ static optee_invoke_fn *get_invoke_func(struct udevice *dev)
 		return ERR_PTR(-ENXIO);
 	}
 
+#ifdef CONFIG_ARM_SMCCC
 	if (!strcmp("hvc", method))
 		return optee_smccc_hvc;
 	else if (!strcmp("smc", method))
 		return optee_smccc_smc;
+#endif
+#ifdef CONFIG_RISCV
+	if (!strcmp("mpxy", method)) {
+		if (optee_mpxy_init())
+			return ERR_PTR(-ENODEV);
+		return optee_mpxy_invoke;
+	}
+#endif
 
 	debug("optee: invalid \"method\" property: %s\n", method);
 	return ERR_PTR(-EINVAL);
@@ -681,6 +693,14 @@ static int optee_probe(struct udevice *dev)
 	return 0;
 }
 
+static int optee_remove(struct udevice *dev)
+{
+	/* Leave no MPXY shared memory registered when the OS starts */
+	if (IS_ENABLED(CONFIG_RISCV))
+		optee_mpxy_exit();
+	return 0;
+}
+
 static const struct udevice_id optee_match[] = {
 	{ .compatible = "linaro,optee-tz" },
 	{},
@@ -692,6 +712,8 @@ U_BOOT_DRIVER(optee) = {
 	.of_match = optee_match,
 	.of_to_plat = optee_of_to_plat,
 	.probe = optee_probe,
+	.remove = optee_remove,
+	.flags = DM_FLAG_OS_PREPARE,
 	.ops = &optee_ops,
 	.plat_auto	= sizeof(struct optee_pdata),
 	.priv_auto	= sizeof(struct optee_private),

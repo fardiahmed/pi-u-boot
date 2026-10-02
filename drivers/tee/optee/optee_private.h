@@ -79,4 +79,14 @@ static inline void optee_suppl_cmd_i2c_transfer(struct optee_msg_arg *arg)
 
 void *optee_alloc_and_init_page_list(void *buf, ulong len, u64 *phys_buf_ptr);
 
+struct arm_smccc_res;
+
+/* RISC-V: OP-TEE in an OpenSBI domain, reached through SBI MPXY (mpxy.c) */
+int optee_mpxy_init(void);
+void optee_mpxy_exit(void);
+void optee_mpxy_invoke(unsigned long a0, unsigned long a1, unsigned long a2,
+		       unsigned long a3, unsigned long a4, unsigned long a5,
+		       unsigned long a6, unsigned long a7,
+		       struct arm_smccc_res *res);
+
 #endif /* __OPTEE_PRIVATE_H */

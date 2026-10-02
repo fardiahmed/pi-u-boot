@@ -1,7 +1,7 @@
 # Generic Trusted Execution Environment Configuration
 config TEE
 	bool "Trusted Execution Environment support"
-	depends on (ARM && (ARM64 || CPU_V7A)) || SANDBOX
+	depends on (ARM && (ARM64 || CPU_V7A)) || (RISCV && SBI) || SANDBOX
 	select ARM_SMCCC if ARM
 	help
 	  This implements a generic interface towards a Trusted Execution
