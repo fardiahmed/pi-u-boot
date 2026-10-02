@@ -16,6 +16,13 @@
 		};
 	};
 
+	/* U-Boot's OP-TEE client (AVB root of trust), on the boot hart's rpmi_optee channel */
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "mpxy";
+		};
+	};
 	chosen {
 		opensbi-domains {
 			compatible = "opensbi,domain,config";
