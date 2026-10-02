@@ -453,6 +453,13 @@
 				>;
 			};
 
+			pinctrl_i2c0_0: i2c0_0_grp {
+				pinctrl-single,pins = <
+					K3_PADCONF(GPIO_00, MUX_MODE6, (EDGE_NONE | PULL_UP | PAD_DS0)) /* i2c0_scl */
+					K3_PADCONF(GPIO_01, MUX_MODE6, (EDGE_NONE | PULL_UP | PAD_DS0)) /* i2c0_sda */
+				>;
+			};
+
 			pinctrl_i2c1_3: i2c1_3_grp {
 				pinctrl-single,pins = <
 					K3_PADCONF(GPIO_102, MUX_MODE6, (EDGE_NONE | PULL_UP | PAD_DS0)) /* i2c1_scl */
@@ -1026,6 +1033,17 @@
 		};
 
 		/* General-purpose I2C (TWSI) controllers. */
+		i2c0: i2c@d4010800 {
+			compatible = "spacemit,i2c";
+			reg = <0x0 0xd4010800 0x0 0x38>;
+			clocks = <&ccu CLK_TWSI0>;
+			resets = <&reset RESET_TWSI0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
 		i2c1: i2c@d4011000 {
 			compatible = "spacemit,i2c";
 			reg = <0x0 0xd4011000 0x0 0x38>;
